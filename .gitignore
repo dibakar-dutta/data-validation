@@ -1,0 +1,7 @@
+*target
+/.idea
+.bsp
+.env
+.pyc
+/airflow/logs/*
+__pycache__

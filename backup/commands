@@ -1,0 +1,3 @@
+docker container exec -it mysql  mysql -udata_validation_user -pdata_validation_pass
+
+docker container exec -t postgres pg_dump -c -U data_validation_user validation_source > postgres_data.sql
