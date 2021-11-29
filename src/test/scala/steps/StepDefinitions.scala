@@ -21,14 +21,13 @@ class StepDefinitions
     with Matchers
     with ScenarioState {
 
-
-  Given("""Airflow DAG job is triggered successfully""") { () =>
-    val triggerDAGResponseFuture: Future[TriggerDAGResponse] = AirflowClient().triggerDAG()
+  Given("""^Airflow DAG job (.*) is triggered successfully""") { (dagId: String) =>
+    val triggerDAGResponseFuture: Future[TriggerDAGResponse] = AirflowClient().triggerDAG(dagId)
     triggerDAGResponseFuture.foreach(triggerDAGResponse => storeDAGRunId(triggerDAGResponse.dag_run_id))(AirflowClient().executionContext)
   }
 
-  When("""Airflow DAG job is executed successfully""") { () =>
-    val result = AirflowClient().executeDAGRunStatusUntilSuccess(dagRunId = dagRunId)
+  When("""^Airflow DAG job with (.*) is executed successfully""") { (dagId: String) =>
+    val result = AirflowClient().executeDAGRunStatusUntilSuccess(dagId, dagRunId)
     Await.result(result, Duration.Inf)
   }
 
@@ -36,9 +35,9 @@ class StepDefinitions
     succeed
   }
 
-  And("""Data from Postgres table to MySQL table loaded successfully""") { () =>
-    val mySqlDF = MySqlClient().employeeDF
-    val postgresDF = PostgresClient().employeeDF
+  And("""^Data from (.*) to (.*) loaded successfully""") { (sourceTable: String, targetTable:String) =>
+    val mySqlDF = MySqlClient().readTable(sourceTable)
+    val postgresDF = PostgresClient().readTable(targetTable)
 
     store(mySqlDF, postgresDF)
   }
@@ -52,13 +51,26 @@ class StepDefinitions
 
     //mySqlTransformedDF.withColumn("role", expr("if(name = 'Dibakar Dutta', 'engineer', 'architect')")).show
 
-    val mySqlTransformedData = mySqlTransformedDF.take(2)
-    val postgresData = postgresEmployeesDF.take(2)
+    val mySqlTransformedData = mySqlTransformedDF.take(10)
+    val postgresData = postgresEmployeesDF.take(10)
+
+    println("==================== source data ==============")
+    mySqlEmployeesDF.show
+    println("=================== source data end ===========")
+
+    println("=========target data start ===============")
+    postgresEmployeesDF.show()
+    println("=====target data end====")
+
+    println("=========Direct Comparison Source and Target ===============")
+    mySqlTransformedDF.except(postgresEmployeesDF).show()
+    println("=====Direct Comparison Source and Target end====")
 
     postgresData should contain theSameElementsAs mySqlTransformedData
   }
 
   Then("""Target table data quality should be as expected""") { () =>
+
     val verificationResult: VerificationResult = VerificationSuite()
       .onData(postgresEmployeesDF)
       .addCheck(
@@ -68,18 +80,61 @@ class StepDefinitions
           .isUnique("id") // should not contain duplicates
           .isComplete("name") // should never be NULL
           .isComplete("email") // should never be NULL
-          .containsEmail("email", _ == 1.0)
+          .containsEmail("email", _ == 1.0) //% of row match
           .isComplete("role") // should never be NULL
           .isContainedIn("role", Array("engineer", "architect")) // should only contain the values "engineer" and "architect"
+          .containsSocialSecurityNumber("SSN")
       )
       .run()
 
     println("==========================")
     println("==========================")
-    println(verificationResult.status)
+    //println(verificationResult.status)
+    println(verificationResult.checkResults)
+    println("==========================")
+    println("==========================")
+
+    verificationResult.status should be (CheckStatus.Success)
+  }
+  Then("""^Target table data quality should be Unique for the Column (.*)""") { (ColumnName:String) =>
+
+    val verificationResult: VerificationResult = VerificationSuite()
+      .onData(postgresEmployeesDF)
+      .addCheck(
+        Check(CheckLevel.Error, "unit testing my data")
+          .isUnique(ColumnName) // should not contain duplicates
+      )
+      .run()
+
+    println("==========================")
+    println("==========================")
+    //println(verificationResult.status)
+    println(verificationResult.checkResults)
+    println("==========================")
+    println("==========================")
+
+    verificationResult.status should be (CheckStatus.Success)
+  }
+
+  Then("""^Target table data quality should be Complete for the Column (.*)""") { (ColumnName:String) =>
+
+    val verificationResult: VerificationResult = VerificationSuite()
+      .onData(postgresEmployeesDF)
+      .addCheck(
+        Check(CheckLevel.Error, "unit testing my data")
+          .isComplete(ColumnName) // should not contain duplicates
+      )
+      .run()
+
+    println("==========================")
+    println("==========================")
+    //println(verificationResult.status)
+    println(verificationResult.checkResults)
     println("==========================")
     println("==========================")
 
     verificationResult.status should be (CheckStatus.Success)
   }
 }
+
+

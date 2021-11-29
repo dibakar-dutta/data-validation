@@ -8,4 +8,6 @@ trait Session {
     .appName("Data Validator")
     .config("spark.master", "local")
     .getOrCreate()
+
+  sparkSession.sparkContext.setLogLevel("ERROR")
 }

@@ -1,0 +1,1 @@
+SELECT case when emp_location='Bangalore' then emp_name as Employee, emp_location as Location from Employee

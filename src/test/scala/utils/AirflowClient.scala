@@ -34,7 +34,7 @@ class AirflowClient extends TestKit(ActorSystem("airflow_client")) with JsonSupp
   // for use with Futures, Scheduler, etc.
   implicit val executionContext = system.dispatchers.lookup("my-dispatcher")
 
-  private val dagId = "compute_training_model_accuracy"
+  //private val dagId = "compute_training_model_accuracy"
 
   private val baseUri = "http://localhost:8080/api/v1/dags"
 
@@ -49,7 +49,7 @@ class AirflowClient extends TestKit(ActorSystem("airflow_client")) with JsonSupp
     response.map(_.parseJson.convertTo[DAGs])
   }
 
-  def triggerDAG(dagId: String = dagId): Future[TriggerDAGResponse] = {
+  def triggerDAG(dagId: String/* = dagId*/): Future[TriggerDAGResponse] = {
     val dagRunId = "dag_run_id_" + Random.nextInt(10000)
     val requestBody = TriggerDAG(dagRunId)
     val json = requestBody.toJson.prettyPrint
@@ -70,7 +70,7 @@ class AirflowClient extends TestKit(ActorSystem("airflow_client")) with JsonSupp
     response.map(_.parseJson.convertTo[TriggerDAGResponse])
   }
 
-  def executeDAGRunStatusUntilSuccess(dagId: String = dagId, dagRunId: String): Future[Boolean] = {
+  def executeDAGRunStatusUntilSuccess(dagId: String, dagRunId: String): Future[Boolean] = {
     getDAGRunStatus(dagId, dagRunId).flatMap {
       case DAGRunStatusResponse(_, _, status @ ("running" | "queued")) =>
         println(s"DAG status: $status... retrying in 1 second \n")
